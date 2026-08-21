@@ -3,6 +3,8 @@ class_name Unit3D
 
 signal clicked(unit_id: String)
 
+const MATS := preload("res://scripts/materials.gd")
+
 var unit_id := ""
 var side := "player"
 var kind := "warrior"
@@ -55,6 +57,9 @@ func _mat(color: Color, metallic := 0.15, rough := 0.72) -> StandardMaterial3D:
 	m.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
 	return m
 
+func _tex(name: String, tint := Color.WHITE, metallic := 0.12, rough := 0.74, scale := 1.2) -> StandardMaterial3D:
+	return MATS.surf(name, tint, metallic, rough, scale, false)
+
 func _mesh(mi_mesh: Mesh, mat: Material, pos: Vector3, scl: Vector3 = Vector3.ONE) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mi_mesh
@@ -91,78 +96,75 @@ func _build_figure() -> void:
 			_fig_scavenger()
 
 func _fig_warrior() -> void:
-	var bronze := _mat(Color("8b5a3a"), 0.55, 0.4)
-	var dark := _mat(Color("2a221c"))
-	var cloth := _mat(Color("3a2a22"))
+	var bronze := _tex("bronze", Color("d8b08a"), 0.62, 0.38, 1.6)
+	var cloth := _tex("wool", Color("6a4a3a"), 0.04, 0.86, 1.4)
+	var skin := _tex("skin", Color("e8c8a8"), 0.0, 0.62, 0.9)
+	var iron := _tex("iron", Color("c8c4bc"), 0.82, 0.28, 1.8)
 	_mesh(CapsuleMesh.new(), cloth, Vector3(0, 1.05, 0), Vector3(1.15, 0.95, 1.1))
 	_mesh(BoxMesh.new(), bronze, Vector3(0, 1.35, 0.05), Vector3(1.25, 0.55, 0.7))
-	_mesh(SphereMesh.new(), _mat(Color("c4a07a")), Vector3(0, 1.85, 0), Vector3(0.7, 0.7, 0.7))
+	_mesh(SphereMesh.new(), skin, Vector3(0, 1.85, 0), Vector3(0.7, 0.7, 0.7))
 	_mesh(BoxMesh.new(), bronze, Vector3(0, 2.05, 0), Vector3(0.85, 0.28, 0.85))
 	_mesh(BoxMesh.new(), bronze, Vector3(-0.55, 1.2, 0.15), Vector3(0.7, 1.1, 0.12))
-	var blade := BoxMesh.new()
-	_mesh(blade, _mat(Color("c4c0b4"), 0.8, 0.25), Vector3(0.7, 1.35, 0), Vector3(0.08, 1.5, 0.18))
+	_mesh(BoxMesh.new(), iron, Vector3(0.7, 1.35, 0), Vector3(0.08, 1.5, 0.18))
 	_mesh(BoxMesh.new(), bronze, Vector3(0.7, 0.7, 0), Vector3(0.22, 0.12, 0.28))
 
 func _fig_hunter() -> void:
-	var leather := _mat(Color("6b5344"))
-	var cloak := _mat(Color("3a322c"))
+	var leather := _tex("leather", Color("c4a07a"), 0.05, 0.7, 1.3)
+	var cloak := _tex("wool", Color("5a5048"), 0.02, 0.9, 1.5)
+	var skin := _tex("skin", Color("e0c4a4"), 0.0, 0.62, 0.9)
+	var wood := _tex("wood", Color("c4b090"), 0.05, 0.7, 1.2)
 	_mesh(CapsuleMesh.new(), leather, Vector3(0, 1.1, 0), Vector3(0.85, 1.0, 0.85))
-	_mesh(SphereMesh.new(), _mat(Color("b89a7a")), Vector3(0, 1.95, 0), Vector3(0.58, 0.58, 0.58))
-	var cape := PrismMesh.new()
-	_mesh(cape, cloak, Vector3(0, 1.2, -0.28), Vector3(1.1, 1.4, 0.15))
-	_mesh(CylinderMesh.new(), _mat(Color("2a2420"), 0.2, 0.6), Vector3(0.45, 1.3, 0.1), Vector3(0.08, 1.15, 0.08))
+	_mesh(SphereMesh.new(), skin, Vector3(0, 1.95, 0), Vector3(0.58, 0.58, 0.58))
+	_mesh(PrismMesh.new(), cloak, Vector3(0, 1.2, -0.28), Vector3(1.1, 1.4, 0.15))
+	_mesh(CylinderMesh.new(), wood, Vector3(0.45, 1.3, 0.1), Vector3(0.08, 1.15, 0.08))
 	_mesh(BoxMesh.new(), leather, Vector3(0.55, 1.85, 0.05), Vector3(0.08, 0.55, 0.35))
 
 func _fig_occultist() -> void:
-	var robe := _mat(Color("2a2624"))
-	var ash := _mat(Color("5a534c"), 0.1, 0.85)
+	var robe := _tex("wool", Color("4a4440"), 0.04, 0.88, 1.5)
+	var ash := _tex("stone", Color("8a8278"), 0.08, 0.86, 1.4)
 	_mesh(CapsuleMesh.new(), robe, Vector3(0, 1.2, 0), Vector3(0.9, 1.15, 0.9))
-	var hood := CylinderMesh.new()
-	_mesh(hood, ash, Vector3(0, 2.05, 0), Vector3(0.85, 0.45, 0.85))
-	_mesh(SphereMesh.new(), _mat(Color("1a1614")), Vector3(0, 1.88, 0.12), Vector3(0.42, 0.42, 0.42))
-	_mesh(CylinderMesh.new(), _mat(Color("3a3228"), 0.3, 0.5), Vector3(-0.55, 1.35, 0), Vector3(0.07, 1.4, 0.07))
-	var orb := _mesh(SphereMesh.new(), _mat(Color("c45c3a"), 0.0, 0.3), Vector3(-0.55, 2.15, 0), Vector3(0.18, 0.18, 0.18))
-	var em: StandardMaterial3D = orb.material_override
-	em.emission_enabled = true
-	em.emission = Color("c45c3a")
-	em.emission_energy_multiplier = 2.4
+	_mesh(CylinderMesh.new(), ash, Vector3(0, 2.05, 0), Vector3(0.85, 0.45, 0.85))
+	_mesh(SphereMesh.new(), _tex("bone", Color("c8bca8"), 0.05, 0.55, 0.8), Vector3(0, 1.88, 0.12), Vector3(0.42, 0.42, 0.42))
+	_mesh(CylinderMesh.new(), _tex("wood", Color("b8a078"), 0.1, 0.6, 1.0), Vector3(-0.55, 1.35, 0), Vector3(0.07, 1.4, 0.07))
+	_mesh(SphereMesh.new(), MATS.emit("iron", Color("c45c3a"), 2.6, 0.6), Vector3(-0.55, 2.15, 0), Vector3(0.18, 0.18, 0.18))
 
 func _fig_wanderer() -> void:
-	var cloth := _mat(Color("6a6b55"))
+	var cloth := _tex("wool", Color("8a8c6a"), 0.04, 0.86, 1.4)
+	var skin := _tex("skin", Color("f0d2b0"), 0.0, 0.6, 0.9)
+	var wood := _tex("wood", Color("d4c08a"), 0.08, 0.55, 1.1)
 	_mesh(CapsuleMesh.new(), cloth, Vector3(0, 1.08, 0), Vector3(0.9, 0.95, 0.9))
-	_mesh(SphereMesh.new(), _mat(Color("d2b48c")), Vector3(0, 1.9, 0), Vector3(0.6, 0.6, 0.6))
-	_mesh(CylinderMesh.new(), _mat(Color("8a7a55")), Vector3(0, 2.18, 0), Vector3(0.7, 0.12, 0.7))
-	_mesh(CylinderMesh.new(), _mat(Color("c4a35a"), 0.4, 0.4), Vector3(0.5, 1.25, 0), Vector3(0.07, 1.25, 0.07))
-	var gem := _mesh(SphereMesh.new(), _mat(Color("5a8f72")), Vector3(0.5, 2.0, 0), Vector3(0.16, 0.16, 0.16))
-	var gm: StandardMaterial3D = gem.material_override
-	gm.emission_enabled = true
-	gm.emission = Color("5a8f72")
-	gm.emission_energy_multiplier = 1.6
+	_mesh(SphereMesh.new(), skin, Vector3(0, 1.9, 0), Vector3(0.6, 0.6, 0.6))
+	_mesh(CylinderMesh.new(), _tex("leather", Color("c4a070"), 0.05, 0.7, 1.0), Vector3(0, 2.18, 0), Vector3(0.7, 0.12, 0.7))
+	_mesh(CylinderMesh.new(), wood, Vector3(0.5, 1.25, 0), Vector3(0.07, 1.25, 0.07))
+	_mesh(SphereMesh.new(), MATS.emit("stone", Color("5a8f72"), 1.8, 0.7), Vector3(0.5, 2.0, 0), Vector3(0.16, 0.16, 0.16))
 
 func _fig_scavenger() -> void:
-	var hide := _mat(Color("4a3a30"))
+	var hide := _tex("leather", Color("8a6a50"), 0.04, 0.78, 1.3)
+	var bone := _tex("bone", Color("e8dcc4"), 0.12, 0.45, 1.0)
 	_mesh(CapsuleMesh.new(), hide, Vector3(0, 0.75, 0), Vector3(0.95, 0.7, 1.1))
 	_mesh(SphereMesh.new(), hide, Vector3(0.15, 1.25, 0.25), Vector3(0.55, 0.45, 0.7))
-	_mesh(BoxMesh.new(), _mat(Color("c4c0b0"), 0.7, 0.3), Vector3(0.45, 0.7, 0.3), Vector3(0.12, 0.08, 0.55))
-	_mesh(BoxMesh.new(), _mat(Color("c4c0b0"), 0.7, 0.3), Vector3(-0.35, 0.7, 0.3), Vector3(0.12, 0.08, 0.55))
+	_mesh(BoxMesh.new(), bone, Vector3(0.45, 0.7, 0.3), Vector3(0.12, 0.08, 0.55))
+	_mesh(BoxMesh.new(), bone, Vector3(-0.35, 0.7, 0.3), Vector3(0.12, 0.08, 0.55))
 
 func _fig_cultist() -> void:
-	var robe := _mat(Color("2c2420"))
+	var robe := _tex("wool", Color("4a3c36"), 0.04, 0.9, 1.5)
+	var mask := _tex("bone", Color("d4c4a8"), 0.08, 0.5, 0.9)
 	_mesh(CapsuleMesh.new(), robe, Vector3(0, 1.1, 0), Vector3(0.95, 1.05, 0.95))
-	_mesh(SphereMesh.new(), _mat(Color("1a1612")), Vector3(0, 1.95, 0), Vector3(0.55, 0.55, 0.55))
-	_mesh(BoxMesh.new(), _mat(Color("5a534c")), Vector3(0, 1.95, 0.22), Vector3(0.45, 0.35, 0.08))
-	_mesh(CylinderMesh.new(), _mat(Color("3a3228")), Vector3(0.4, 1.15, 0), Vector3(0.06, 1.1, 0.06))
+	_mesh(SphereMesh.new(), _tex("wool", Color("2a2420"), 0.02, 0.9, 1.0), Vector3(0, 1.95, 0), Vector3(0.55, 0.55, 0.55))
+	_mesh(BoxMesh.new(), mask, Vector3(0, 1.95, 0.22), Vector3(0.45, 0.35, 0.08))
+	_mesh(CylinderMesh.new(), _tex("wood", Color("b8a078"), 0.08, 0.65, 1.0), Vector3(0.4, 1.15, 0), Vector3(0.06, 1.1, 0.06))
 
 func _fig_butcher() -> void:
-	var meat := _mat(Color("5a3028"))
-	var iron := _mat(Color("6a6a68"), 0.7, 0.35)
+	var meat := _tex("leather", Color("8a4030"), 0.05, 0.72, 1.4)
+	var iron := _tex("iron", Color("c0b8b0"), 0.75, 0.32, 1.8)
+	var skin := _tex("skin", Color("c08060"), 0.0, 0.65, 0.9)
 	_mesh(CapsuleMesh.new(), meat, Vector3(0, 1.25, 0), Vector3(1.35, 1.05, 1.2))
-	_mesh(SphereMesh.new(), _mat(Color("8a5a48")), Vector3(0, 2.15, 0), Vector3(0.7, 0.6, 0.7))
+	_mesh(SphereMesh.new(), skin, Vector3(0, 2.15, 0), Vector3(0.7, 0.6, 0.7))
 	_mesh(BoxMesh.new(), iron, Vector3(0.85, 1.55, 0), Vector3(0.12, 1.7, 0.45))
 	_mesh(BoxMesh.new(), iron, Vector3(0.85, 0.75, 0), Vector3(0.2, 0.15, 0.2))
 
 func _fig_parasite() -> void:
-	var chitin := _mat(Color("3a4a3a"), 0.2, 0.35)
+	var chitin := _tex("chitin", Color("8aa878"), 0.18, 0.38, 1.6)
 	_mesh(SphereMesh.new(), chitin, Vector3(0, 0.55, 0), Vector3(1.1, 0.7, 1.4))
 	_mesh(SphereMesh.new(), chitin, Vector3(0.35, 0.85, 0.4), Vector3(0.5, 0.4, 0.55))
 	for i in 4:
@@ -170,29 +172,21 @@ func _fig_parasite() -> void:
 		leg.rotation_degrees.z = 35 if i % 2 == 0 else -35
 
 func _fig_keeper() -> void:
-	var stone := _mat(Color("5a534c"), 0.05, 0.9)
-	var ember := _mat(Color("c45c3a"), 0.0, 0.4)
+	var stone := _tex("stone", Color("c4b8a8"), 0.05, 0.9, 1.8)
 	_mesh(BoxMesh.new(), stone, Vector3(0, 1.2, 0), Vector3(1.3, 2.2, 0.9))
 	_mesh(BoxMesh.new(), stone, Vector3(0, 2.4, 0), Vector3(1.0, 0.45, 1.0))
-	var core := _mesh(SphereMesh.new(), ember, Vector3(0, 1.35, 0.4), Vector3(0.35, 0.35, 0.2))
-	var em: StandardMaterial3D = core.material_override
-	em.emission_enabled = true
-	em.emission = Color("c45c3a")
-	em.emission_energy_multiplier = 3.0
+	_mesh(SphereMesh.new(), MATS.emit("iron", Color("c45c3a"), 3.2, 0.8), Vector3(0, 1.35, 0.4), Vector3(0.35, 0.35, 0.2))
 
 func _fig_boss() -> void:
-	var ash := _mat(Color("3a322c"), 0.1, 0.8)
-	var gold := _mat(Color("c4a35a"), 0.65, 0.35)
+	var ash := _tex("wool", Color("5a5048"), 0.06, 0.85, 1.6)
+	var gold := _tex("bronze", Color("e8d09a"), 0.7, 0.32, 1.4)
+	var mask := _tex("bone", Color("d8c8b0"), 0.08, 0.5, 0.9)
 	_mesh(CapsuleMesh.new(), ash, Vector3(0, 1.55, 0), Vector3(1.2, 1.4, 1.2))
-	_mesh(SphereMesh.new(), _mat(Color("2a2420")), Vector3(0, 2.7, 0), Vector3(0.85, 0.85, 0.85))
+	_mesh(SphereMesh.new(), mask, Vector3(0, 2.7, 0), Vector3(0.85, 0.85, 0.85))
 	_mesh(BoxMesh.new(), gold, Vector3(0, 2.7, 0.38), Vector3(0.7, 0.55, 0.1))
 	_mesh(CylinderMesh.new(), gold, Vector3(0, 3.15, 0), Vector3(0.7, 0.2, 0.7))
-	var flame := _mesh(SphereMesh.new(), _mat(Color("c45c3a")), Vector3(0, 3.45, 0), Vector3(0.28, 0.4, 0.28))
-	var em: StandardMaterial3D = flame.material_override
-	em.emission_enabled = true
-	em.emission = Color("c45c3a")
-	em.emission_energy_multiplier = 4.0
-	_mesh(CylinderMesh.new(), ash, Vector3(-0.7, 1.6, 0), Vector3(0.1, 1.7, 0.1))
+	_mesh(SphereMesh.new(), MATS.emit("iron", Color("c45c3a"), 4.0, 0.7), Vector3(0, 3.45, 0), Vector3(0.28, 0.4, 0.28))
+	_mesh(CylinderMesh.new(), _tex("wood", Color("b8a078"), 0.08, 0.65, 1.0), Vector3(-0.7, 1.6, 0), Vector3(0.1, 1.7, 0.1))
 
 func _make_ui(data: Dictionary) -> void:
 	_ring = MeshInstance3D.new()
@@ -271,7 +265,6 @@ func _on_input(_cam, event, _pos, _normal, _shape) -> void:
 func _sync_hp(data: Dictionary) -> void:
 	var pct := clampf(float(data.hp) / maxf(1.0, float(data.max_hp)), 0.0, 1.0)
 	_hp_fill.scale = Vector3(pct, 1.0, 1.0)
-	_hp_fill.position = Vector3((-0.5 + pct * 0.5) * 0.0, 0, 0.02)
 	_hp_fill.position.x = (pct - 1.0) * 0.5
 
 func sync(data: Dictionary, is_turn: bool, can_target: bool) -> void:
@@ -299,6 +292,7 @@ func show_fx(text: String, kind: String) -> void:
 	_fx.visible = true
 	_fx.modulate = Color("c4a35a") if kind == "crit" else (Color("5a8f72") if kind == "heal" else Color("c45c3a"))
 	_fx.position.y = _head_y() + 0.55
+	_fx.modulate.a = 1.0
 	var tw := create_tween()
 	tw.tween_property(_fx, "position:y", _head_y() + 1.1, 0.7)
 	tw.parallel().tween_property(_fx, "modulate:a", 0.0, 0.7)

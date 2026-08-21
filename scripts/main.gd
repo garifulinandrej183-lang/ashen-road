@@ -15,18 +15,33 @@ const HP_C := Color("b54a3a")
 var root: VBoxContainer
 var content: Control
 var toast_lbl: Label
-var last_screen := ""
 var enemy_timer := 0.0
 var combat_layer: Control
 var combat_world: CombatWorld
-var combat_hud: VBoxContainer
-var bound_enc := ""
+var combat_hud: Control
+var header_bar: Control
+var body_font: Font
+var display_font: Font
 
 func _ready() -> void:
 	set_anchors_preset(PRESET_FULL_RECT)
+	body_font = load("res://assets/fonts/EBGaramond-Regular.ttf")
+	display_font = load("res://assets/fonts/Cinzel-SemiBold.ttf")
+	if body_font:
+		theme = _make_theme()
 	Game.changed.connect(_on_changed)
 	_build_shell()
 	_on_changed()
+
+func _make_theme() -> Theme:
+	var th := Theme.new()
+	th.default_font = body_font
+	th.set_default_font_size(18)
+	th.set_color("font_color", "Label", FG)
+	th.set_color("font_color", "Button", FG)
+	th.set_font("font", "Label", body_font)
+	th.set_font("font", "Button", body_font)
+	return th
 
 func _process(d: float) -> void:
 	if Game.screen != "combat" or Game.combat == null:
@@ -50,37 +65,12 @@ func _on_changed() -> void:
 		combat_layer.visible = in_combat
 	if content:
 		content.visible = not in_combat
+	if header_bar:
+		header_bar.visible = Game.screen not in ["title", "combat"]
 	if in_combat:
 		_update_combat()
 	else:
-		bound_enc = ""
 		_rebuild()
-
-func _build_combat_layer() -> void:
-	var v := VBoxContainer.new()
-	v.set_anchors_preset(PRESET_FULL_RECT)
-	v.add_theme_constant_override("separation", 8)
-	combat_layer.add_child(v)
-	var vp_wrap := SubViewportContainer.new()
-	vp_wrap.size_flags_vertical = SIZE_EXPAND_FILL
-	vp_wrap.stretch = true
-	vp_wrap.custom_minimum_size = Vector2(0, 360)
-	var vp := SubViewport.new()
-	vp.transparent_bg = false
-	vp.handle_input_locally = true
-	vp.physics_object_picking = true
-	vp.own_world_3d = true
-	vp.msaa_3d = Viewport.MSAA_2X
-	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	vp.size = Vector2i(1280, 520)
-	vp_wrap.add_child(vp)
-	combat_world = CombatWorld.new()
-	combat_world.unit_clicked.connect(func(id): Game.select_target(id))
-	vp.add_child(combat_world)
-	v.add_child(vp_wrap)
-	combat_hud = VBoxContainer.new()
-	combat_hud.add_theme_constant_override("separation", 6)
-	v.add_child(combat_hud)
 
 func _update_combat() -> void:
 	combat_world.bind_combat(Game.combat)
@@ -95,16 +85,17 @@ func _build_shell() -> void:
 	add_child(bg)
 	root = VBoxContainer.new()
 	root.set_anchors_preset(PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 8)
+	root.add_theme_constant_override("separation", 0)
 	var m := MarginContainer.new()
 	m.set_anchors_preset(PRESET_FULL_RECT)
-	m.add_theme_constant_override("margin_left", 18)
-	m.add_theme_constant_override("margin_right", 18)
-	m.add_theme_constant_override("margin_top", 12)
-	m.add_theme_constant_override("margin_bottom", 16)
+	m.add_theme_constant_override("margin_left", 0)
+	m.add_theme_constant_override("margin_right", 0)
+	m.add_theme_constant_override("margin_top", 0)
+	m.add_theme_constant_override("margin_bottom", 0)
 	add_child(m)
 	m.add_child(root)
-	root.add_child(_header())
+	header_bar = _header()
+	root.add_child(header_bar)
 	var stack := Control.new()
 	stack.size_flags_vertical = SIZE_EXPAND_FILL
 	root.add_child(stack)
@@ -122,12 +113,41 @@ func _build_shell() -> void:
 	toast_lbl.visible = false
 	root.add_child(toast_lbl)
 
+func _build_combat_layer() -> void:
+	var vp_wrap := SubViewportContainer.new()
+	vp_wrap.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	vp_wrap.stretch = true
+	vp_wrap.mouse_filter = Control.MOUSE_FILTER_STOP
+	var vp := SubViewport.new()
+	vp.transparent_bg = false
+	vp.handle_input_locally = true
+	vp.physics_object_picking = true
+	vp.own_world_3d = true
+	vp.msaa_3d = Viewport.MSAA_2X
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	vp.size = Vector2i(1280, 720)
+	vp_wrap.add_child(vp)
+	combat_world = CombatWorld.new()
+	combat_world.unit_clicked.connect(func(id): Game.select_target(id))
+	vp.add_child(combat_world)
+	combat_layer.add_child(vp_wrap)
+	combat_hud = Control.new()
+	combat_hud.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	combat_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	combat_layer.add_child(combat_hud)
+
 func _header() -> HBoxContainer:
 	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 8)
+	var pad := MarginContainer.new()
+	# wrapper via offsets on children
+	h.custom_minimum_size = Vector2(0, 48)
 	var t := Button.new()
 	t.text = "ASHEN ROAD"
 	t.flat = true
 	_style_btn(t, GOLD, Color.TRANSPARENT)
+	if display_font:
+		t.add_theme_font_override("font", display_font)
 	t.pressed.connect(func():
 		if Game.screen in ["title", "combat", "event", "reward", "result", "map"]:
 			return
@@ -144,20 +164,37 @@ func _header() -> HBoxContainer:
 	h.add_child(_small_btn("Сохранить", Game.save_game))
 	h.add_child(_small_btn("Загрузить", func(): Game.load_game()))
 	h.add_child(_small_btn("Новая", func(): Game.new_game(true)))
+	var wrap := MarginContainer.new()
+	wrap.add_theme_constant_override("margin_left", 18)
+	wrap.add_theme_constant_override("margin_right", 18)
+	wrap.add_theme_constant_override("margin_top", 8)
+	wrap.add_theme_constant_override("margin_bottom", 4)
+	wrap.add_child(h)
+	# return inner; caller needs header_bar as the wrap for visibility
+	# Can't nest easily. Return h; shell already added margins via... we'll keep h.
 	return h
 
 func _rebuild() -> void:
-	var gl: Label = root.get_node_or_null("HBoxContainer/GoldLbl")
+	var gl: Label = header_bar.get_node_or_null("GoldLbl") if header_bar else null
 	if gl:
 		gl.text = "%d зол." % Game.gold if Game.screen != "title" else ""
 	for ch in content.get_children():
 		ch.queue_free()
+	var pad := MarginContainer.new()
+	pad.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var side := 28 if Game.screen in ["title", "town"] else 28
+	pad.add_theme_constant_override("margin_left", side)
+	pad.add_theme_constant_override("margin_right", side)
+	pad.add_theme_constant_override("margin_top", 16)
+	pad.add_theme_constant_override("margin_bottom", 20)
+	content.add_child(pad)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	pad.add_child(scroll)
 	var box := VBoxContainer.new()
-	box.set_anchors_preset(PRESET_FULL_RECT)
-	box.add_theme_constant_override("separation", 10)
-	content.add_child(box)
-	# fill
-	box.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	box.size_flags_horizontal = SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 12)
+	scroll.add_child(box)
 	match Game.screen:
 		"title":
 			_scr_title(box)
@@ -193,11 +230,15 @@ func _heading(box: VBoxContainer, kicker: String, title: String) -> void:
 	k.text = kicker.to_upper()
 	k.add_theme_color_override("font_color", MUTED)
 	k.add_theme_font_size_override("font_size", 12)
+	if display_font:
+		k.add_theme_font_override("font", display_font)
 	box.add_child(k)
 	var t := Label.new()
 	t.text = title
 	t.add_theme_color_override("font_color", FG)
-	t.add_theme_font_size_override("font_size", 28)
+	t.add_theme_font_size_override("font_size", 30)
+	if display_font:
+		t.add_theme_font_override("font", display_font)
 	box.add_child(t)
 
 func _p(box: VBoxContainer, text: String, c: Color = MUTED) -> void:
@@ -210,7 +251,7 @@ func _p(box: VBoxContainer, text: String, c: Color = MUTED) -> void:
 func _btn(text: String, cb: Callable, gold := false) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(0, 44)
+	b.custom_minimum_size = Vector2(0, 46)
 	_style_btn(b, BG if gold else FG, GOLD if gold else FG)
 	b.pressed.connect(cb)
 	return b
@@ -224,31 +265,39 @@ func _small_btn(text: String, cb: Callable) -> Button:
 	return b
 
 func _style_btn(b: Button, fg: Color, bg: Color) -> void:
-	b.add_theme_color_override("font_color", fg if bg != Color.TRANSPARENT and bg != GOLD else (BG if bg == GOLD else fg))
+	var on_gold := bg == GOLD
+	b.add_theme_color_override("font_color", BG if on_gold else fg)
+	b.add_theme_color_override("font_hover_color", BG if on_gold else GOLD)
+	b.add_theme_color_override("font_disabled_color", MUTED)
 	var n := StyleBoxFlat.new()
-	n.bg_color = bg if bg != Color.TRANSPARENT else RAISED
+	n.bg_color = bg if bg != Color.TRANSPARENT else Color(0.12, 0.1, 0.09, 0.92)
 	n.set_border_width_all(1)
-	n.border_color = BORDER if bg != GOLD else GOLD
-	n.content_margin_left = 12
-	n.content_margin_right = 12
+	n.border_color = GOLD if on_gold else BORDER
+	n.content_margin_left = 14
+	n.content_margin_right = 14
 	n.content_margin_top = 8
 	n.content_margin_bottom = 8
+	n.set_corner_radius_all(2)
 	b.add_theme_stylebox_override("normal", n)
-	var h := n.duplicate()
-	h.border_color = GOLD
-	b.add_theme_stylebox_override("hover", h)
-	b.add_theme_stylebox_override("pressed", h)
+	var hov := n.duplicate()
+	hov.border_color = GOLD
+	b.add_theme_stylebox_override("hover", hov)
+	b.add_theme_stylebox_override("pressed", hov)
+	var dis := n.duplicate()
+	dis.bg_color = Color(0.1, 0.09, 0.08, 0.5)
+	b.add_theme_stylebox_override("disabled", dis)
 
 func _panel() -> PanelContainer:
 	var p := PanelContainer.new()
 	var s := StyleBoxFlat.new()
-	s.bg_color = SURFACE
+	s.bg_color = Color(0.075, 0.065, 0.055, 0.94)
 	s.set_border_width_all(1)
-	s.border_color = BORDER
-	s.content_margin_left = 12
-	s.content_margin_right = 12
-	s.content_margin_top = 10
-	s.content_margin_bottom = 10
+	s.border_color = Color(0.28, 0.24, 0.2, 0.85)
+	s.content_margin_left = 14
+	s.content_margin_right = 14
+	s.content_margin_top = 12
+	s.content_margin_bottom = 12
+	s.set_corner_radius_all(2)
 	p.add_theme_stylebox_override("panel", s)
 	return p
 
@@ -261,8 +310,7 @@ func _bar(val: float, mx: float, col: Color) -> ColorRect:
 	fill.color = col
 	wrap.add_child(fill)
 	fill.set_anchors_preset(PRESET_LEFT_WIDE)
-	var pct := clampf(val / maxf(1.0, mx), 0.0, 1.0)
-	fill.anchor_right = pct
+	fill.anchor_right = clampf(val / maxf(1.0, mx), 0.0, 1.0)
 	return wrap
 
 func _portrait(path: String, sz: Vector2) -> TextureRect:
@@ -275,26 +323,33 @@ func _portrait(path: String, sz: Vector2) -> TextureRect:
 	return tr
 
 func _scr_title(box: VBoxContainer) -> void:
-	var sp := Control.new()
-	sp.custom_minimum_size = Vector2(0, 80)
-	box.add_child(sp)
+	if ResourceLoader.exists("res://assets/portraits/title.jpg"):
+		var img := _portrait("res://assets/portraits/title.jpg", Vector2(0, 220))
+		img.size_flags_horizontal = SIZE_EXPAND_FILL
+		box.add_child(img)
 	var k := Label.new()
 	k.text = "СЕРЫЙ ПРИЮТ ПОМНИТ ДОРОГУ"
 	k.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	k.add_theme_color_override("font_color", GOLD)
+	if display_font:
+		k.add_theme_font_override("font", display_font)
+	k.add_theme_font_size_override("font_size", 13)
 	box.add_child(k)
 	var t := Label.new()
 	t.text = "ASHEN ROAD"
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	t.add_theme_font_size_override("font_size", 48)
+	t.add_theme_font_size_override("font_size", 52)
 	t.add_theme_color_override("font_color", FG)
+	if display_font:
+		t.add_theme_font_override("font", display_font)
 	box.add_child(t)
 	var s := Label.new()
 	s.text = "Пепельный Тракт"
 	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	s.add_theme_color_override("font_color", MUTED)
+	s.add_theme_font_size_override("font_size", 22)
 	box.add_child(s)
-	_p(box, "Четыре путника. Одна короткая экспедиция. Здоровье — ещё не всё: разум ломается раньше тела.")
+	_p(box, "Четыре путника. Одна короткая экспедиция. Разум ломается раньше тела.")
 	box.add_child(_btn("Новая игра", func(): Game.new_game(true), true))
 	var loadb := _btn("Загрузить", func(): Game.load_game())
 	loadb.disabled = not Game.has_save()
@@ -309,29 +364,30 @@ func _scr_intro(box: VBoxContainer) -> void:
 
 func _scr_town(box: VBoxContainer) -> void:
 	_heading(box, "Серый Приют", "Последний тёплый камень")
-	_p(box, "Вылазок %d · побед %d. Нажмите на здание." % [Game.stats.expeditions, Game.stats.victories])
+	_p(box, "Вылазок %d  ·  побед %d" % [Game.stats.expeditions, Game.stats.victories])
 	if ResourceLoader.exists("res://assets/portraits/town.jpg"):
-		var img := _portrait("res://assets/portraits/town.jpg", Vector2(0, 180))
+		var img := _portrait("res://assets/portraits/town.jpg", Vector2(0, 200))
 		img.size_flags_horizontal = SIZE_EXPAND_FILL
 		box.add_child(img)
 	var grid := GridContainer.new()
-	grid.columns = 2
+	grid.columns = 3
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
 	var buildings := [
-		["Ворота тракта", "Собрать отряд и уйти в пепел.", "party"],
-		["Очаг", "Ночлег за 15 золота.", "rest"],
-		["Лавка угля", "Купить и продать припасы.", "shop"],
-		["Схрон", "Сумка отряда.", "inventory"],
-		["Казарма", "Герои, раны, связи.", "heroes"],
-		["Кузница", "Укрепить Приют.", "upgrades"],
+		["Ворота", "party"],
+		["Очаг", "rest"],
+		["Лавка", "shop"],
+		["Схрон", "inventory"],
+		["Казарма", "heroes"],
+		["Кузница", "upgrades"],
 	]
 	for b in buildings:
 		var btn := Button.new()
-		btn.text = "%s\n%s" % [b[0], b[1]]
-		btn.custom_minimum_size = Vector2(0, 64)
+		btn.text = b[0]
+		btn.custom_minimum_size = Vector2(0, 52)
+		btn.size_flags_horizontal = SIZE_EXPAND_FILL
 		_style_btn(btn, FG, SURFACE)
-		var scr: String = b[2]
+		var scr: String = b[1]
 		btn.pressed.connect(func(): Game.set_screen(scr))
 		grid.add_child(btn)
 	box.add_child(grid)
@@ -344,8 +400,9 @@ func _scr_party(box: VBoxContainer) -> void:
 	for h in sorted:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
-		row.add_child(_portrait(h.portrait, Vector2(72, 96)))
+		row.add_child(_portrait(h.portrait, Vector2(64, 86)))
 		var col := VBoxContainer.new()
+		col.size_flags_horizontal = SIZE_EXPAND_FILL
 		var n := Label.new()
 		n.text = "%s  ·  %s" % [h.name, h.title]
 		n.add_theme_color_override("font_color", FG)
@@ -364,6 +421,7 @@ func _scr_party(box: VBoxContainer) -> void:
 		row.add_child(col)
 		box.add_child(row)
 	var acts := HBoxContainer.new()
+	acts.add_theme_constant_override("separation", 8)
 	acts.add_child(_btn("На тракт", Game.begin_expedition, true))
 	acts.add_child(_btn("В Приют", func(): Game.set_screen("town")))
 	box.add_child(acts)
@@ -372,18 +430,21 @@ func _scr_heroes(box: VBoxContainer) -> void:
 	_heading(box, "Отряд", "Четыре имени")
 	var grid := GridContainer.new()
 	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
 	for h in Game.heroes:
 		var p := _panel()
 		var v := VBoxContainer.new()
 		var n := Label.new()
-		n.text = "%s  ур. %d  поз. %d" % [h.name, h.level, h.pos]
+		n.text = "%s  ·  ур. %d  ·  поз. %d" % [h.name, h.level, h.pos]
 		n.add_theme_color_override("font_color", FG)
 		v.add_child(n)
 		v.add_child(_bar(h.hp, h.max_hp, HP_C))
 		v.add_child(_bar(h.stress, 100, STRESS_C))
 		var st := Label.new()
-		st.text = "Сила %d · Защита %d · Скорость %d · Крит %d%%" % [h.str, h.def, h.spd, h.crit]
+		st.text = "Сила %d  ·  Защита %d  ·  Скорость %d  ·  Крит %d%%" % [h.str, h.def, h.spd, h.crit]
 		st.add_theme_color_override("font_color", MUTED)
+		st.add_theme_font_size_override("font_size", 14)
 		v.add_child(st)
 		p.add_child(v)
 		grid.add_child(p)
@@ -410,8 +471,7 @@ func _scr_inv(box: VBoxContainer) -> void:
 		if not def.get("combat", false) and town:
 			var row := HBoxContainer.new()
 			for h in Game.heroes:
-				var b := _small_btn(h.name, func(): Game.use_item(it.uid, h.id))
-				row.add_child(b)
+				row.add_child(_small_btn(h.name, func(): Game.use_item(it.uid, h.id)))
 			v.add_child(row)
 		else:
 			var only := Label.new()
@@ -424,7 +484,7 @@ func _scr_inv(box: VBoxContainer) -> void:
 
 func _scr_shop(box: VBoxContainer) -> void:
 	_heading(box, "Лавка угля", "Торговец не называет цены дважды")
-	_p(box, "В казне %d золота. Ассортимент обновляется после вылазки." % Game.gold)
+	_p(box, "В казне %d золота." % Game.gold)
 	var split := HBoxContainer.new()
 	split.add_theme_constant_override("separation", 12)
 	var buy := _panel()
@@ -432,17 +492,16 @@ func _scr_shop(box: VBoxContainer) -> void:
 	var bt := Label.new()
 	bt.text = "КУПИТЬ"
 	bt.add_theme_color_override("font_color", GOLD)
+	if display_font:
+		bt.add_theme_font_override("font", display_font)
 	bv.add_child(bt)
 	if Game.shop.is_empty():
-		var e := Label.new()
-		e.text = "Полки пусты."
-		e.add_theme_color_override("font_color", MUTED)
-		bv.add_child(e)
+		_p(bv, "Полки пусты.")
 	for id in Game.shop:
 		var def: Dictionary = Data.items()[id]
 		var row := HBoxContainer.new()
 		var n := Label.new()
-		n.text = "%s  (%s)" % [def.name, def.desc]
+		n.text = def.name
 		n.size_flags_horizontal = SIZE_EXPAND_FILL
 		n.add_theme_color_override("font_color", FG)
 		row.add_child(n)
@@ -481,10 +540,11 @@ func _scr_rest(box: VBoxContainer) -> void:
 	_p(box, "15 золота за кров.")
 	for h in Game.heroes:
 		var n := Label.new()
-		n.text = "%s  HP %d/%d  стресс %d" % [h.name, h.hp, h.max_hp, h.stress]
+		n.text = "%s    HP %d/%d    стресс %d" % [h.name, h.hp, h.max_hp, h.stress]
 		n.add_theme_color_override("font_color", FG)
 		box.add_child(n)
 	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
 	var r := _btn("Отдохнуть (15)", Game.rest_town, true)
 	r.disabled = Game.gold < 15
 	row.add_child(r)
@@ -531,9 +591,9 @@ func _scr_map(box: VBoxContainer) -> void:
 		var avail: bool = n.id in Game.expedition.available
 		var done: bool = n.id in Game.expedition.done
 		var b := Button.new()
-		b.text = "%s  —  %s" % [n.label, n.kind]
+		b.text = n.label
 		b.disabled = not avail
-		b.custom_minimum_size = Vector2(0, 44)
+		b.custom_minimum_size = Vector2(0, 48)
 		_style_btn(b, GOLD if done else FG, SURFACE)
 		if avail:
 			var nid: String = n.id
@@ -551,153 +611,145 @@ func _scr_event(box: VBoxContainer) -> void:
 		box.add_child(_btn("На тракт", Game.collect_reward))
 		return
 	_heading(box, "На тракте", ev.title)
-	_p(box, ev.body)
+	_p(box, ev.body, FG)
 	for c in ev.choices:
 		var b := Button.new()
-		b.text = "%s\n%s" % [c.label, c.hint]
-		b.custom_minimum_size = Vector2(0, 56)
+		b.text = "%s    ·    %s" % [c.label, c.hint]
+		b.custom_minimum_size = Vector2(0, 52)
 		_style_btn(b, FG, SURFACE)
 		var cid: String = c.id
 		b.pressed.connect(func(): Game.resolve_event(cid))
 		box.add_child(b)
 
 func _fill_combat_hud(c: Dictionary) -> void:
-	var box := combat_hud
+	var actor = Game.engine.actor_of(c)
 	var top := HBoxContainer.new()
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.set_anchors_preset(PRESET_TOP_WIDE)
+	top.offset_left = 20
+	top.offset_right = -20
+	top.offset_top = 14
+	top.offset_bottom = 46
 	var r := Label.new()
-	r.text = "Раунд %d" % c.round
+	r.text = "РАУНД  %d" % c.round
 	r.add_theme_color_override("font_color", MUTED)
+	if display_font:
+		r.add_theme_font_override("font", display_font)
+	r.add_theme_font_size_override("font_size", 13)
 	top.add_child(r)
 	if str(c.banner) != "":
 		var ban := Label.new()
-		ban.text = "   " + str(c.banner)
+		ban.text = "    " + str(c.banner)
 		ban.add_theme_color_override("font_color", EMBER)
+		if display_font:
+			ban.add_theme_font_override("font", display_font)
 		top.add_child(ban)
-	box.add_child(top)
-	var logp := _panel()
+	var sp := Control.new()
+	sp.size_flags_horizontal = SIZE_EXPAND_FILL
+	sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(sp)
+	var gold := Label.new()
+	gold.text = "%d зол." % Game.gold
+	gold.add_theme_color_override("font_color", MUTED)
+	top.add_child(gold)
+	combat_hud.add_child(top)
+	var logp := PanelContainer.new()
+	logp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ls := StyleBoxFlat.new()
+	ls.bg_color = Color(0.05, 0.04, 0.035, 0.55)
+	ls.content_margin_left = 12
+	ls.content_margin_right = 12
+	ls.content_margin_top = 8
+	ls.content_margin_bottom = 8
+	logp.add_theme_stylebox_override("panel", ls)
+	logp.set_anchors_preset(PRESET_TOP_LEFT)
+	logp.offset_left = 20
+	logp.offset_top = 52
+	logp.offset_right = 430
+	logp.offset_bottom = 168
 	var lv := VBoxContainer.new()
+	lv.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for line in c.log.slice(maxi(0, c.log.size() - 4)):
 		var l := Label.new()
 		l.text = line.t
-		l.add_theme_color_override("font_color", HEAL if line.tone == "g" else (EMBER if line.tone == "b" else (GOLD if line.tone == "w" else MUTED)))
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.add_theme_font_size_override("font_size", 15)
+		l.add_theme_color_override("font_color", HEAL if line.tone == "g" else (EMBER if line.tone == "b" else (Color("d8c8a8") if line.tone == "w" else MUTED)))
 		lv.add_child(l)
 	logp.add_child(lv)
-	box.add_child(logp)
-	var actor = Game.engine.actor_of(c)
+	combat_hud.add_child(logp)
 	if c.finished != "none":
+		var wrap := CenterContainer.new()
+		wrap.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+		wrap.mouse_filter = Control.MOUSE_FILTER_STOP
+		var card := _panel()
+		card.custom_minimum_size = Vector2(420, 0)
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", 12)
 		var msg := Label.new()
 		msg.text = "Враги пали" if c.finished == "win" else "Отряд сломлен"
 		msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		msg.add_theme_color_override("font_color", FG)
-		msg.add_theme_font_size_override("font_size", 22)
-		box.add_child(msg)
-		box.add_child(_btn("Забрать добычу" if c.finished == "win" else "Отступить в Приют", Game.finish_combat, c.finished == "win"))
-	elif actor and actor.side == "player" and c.waiting:
-		_skill_dock(box, actor, c)
-		var hint := Label.new()
-		hint.text = "Кликните по цели на поле. Тлеющий контур — доступная цель."
-		hint.add_theme_color_override("font_color", MUTED)
-		box.add_child(hint)
+		if display_font:
+			msg.add_theme_font_override("font", display_font)
+		msg.add_theme_font_size_override("font_size", 26)
+		v.add_child(msg)
+		v.add_child(_btn("Забрать добычу" if c.finished == "win" else "Отступить в Приют", Game.finish_combat, c.finished == "win"))
+		card.add_child(v)
+		wrap.add_child(card)
+		combat_hud.add_child(wrap)
+		return
+	var dock := PanelContainer.new()
+	dock.mouse_filter = Control.MOUSE_FILTER_STOP
+	var ds := StyleBoxFlat.new()
+	ds.bg_color = Color(0.05, 0.045, 0.038, 0.9)
+	ds.border_width_top = 1
+	ds.border_color = Color(0.3, 0.26, 0.2, 0.7)
+	ds.content_margin_left = 18
+	ds.content_margin_right = 18
+	ds.content_margin_top = 10
+	ds.content_margin_bottom = 14
+	dock.add_theme_stylebox_override("panel", ds)
+	dock.set_anchors_preset(PRESET_BOTTOM_WIDE)
+	dock.offset_top = -140
+	dock.offset_bottom = 0
+	if actor and actor.side == "player" and c.waiting:
+		_skill_dock(dock, actor, c)
 	else:
-		_p(box, "%s действует…" % (actor.name if actor else "Смена хода"))
+		var wait := Label.new()
+		wait.text = "%s действует…" % (actor.name if actor else "Смена хода")
+		wait.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		wait.add_theme_color_override("font_color", MUTED)
+		dock.add_child(wait)
+	combat_hud.add_child(dock)
 
-func _lane(c: Dictionary, side: String, actor, tset: Dictionary, can_click: bool) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	var units: Array = []
-	for u in c.units:
-		if u.side == side:
-			units.append(u)
-	if side == "player":
-		units.sort_custom(func(a, b): return a.pos > b.pos)
-	else:
-		units.sort_custom(func(a, b): return a.pos < b.pos)
-	for u in units:
-		var card := _unit_card(u, actor != null and actor.id == u.id, tset.has(u.id), c)
-		if can_click and tset.has(u.id) and u.alive:
-			var uid: String = u.id
-			card.gui_input.connect(func(ev):
-				if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
-					Game.select_target(uid)
-			)
-			card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		row.add_child(card)
-	return row
-
-func _unit_card(u: Dictionary, is_turn: bool, can_t: bool, c: Dictionary) -> PanelContainer:
-	var p := _panel()
-	p.size_flags_horizontal = SIZE_EXPAND_FILL
-	if is_turn:
-		var s: StyleBoxFlat = p.get_theme_stylebox("panel").duplicate()
-		s.border_color = GOLD
-		s.set_border_width_all(2)
-		p.add_theme_stylebox_override("panel", s)
-	elif can_t:
-		var s2: StyleBoxFlat = p.get_theme_stylebox("panel").duplicate()
-		s2.border_color = EMBER
-		s2.set_border_width_all(2)
-		p.add_theme_stylebox_override("panel", s2)
+func _skill_dock(dock: PanelContainer, actor: Dictionary, c: Dictionary) -> void:
 	var v := VBoxContainer.new()
-	var top := Label.new()
-	top.text = "П%d" % u.pos
-	top.add_theme_color_override("font_color", MUTED)
-	top.add_theme_font_size_override("font_size", 11)
-	v.add_child(top)
-	var pic := _portrait(u.portrait, Vector2(0, 110))
-	pic.modulate = Color(0.5, 0.5, 0.5) if not u.alive else Color.WHITE
-	v.add_child(pic)
-	var nm := Label.new()
-	nm.text = u.name
-	nm.add_theme_color_override("font_color", FG)
-	v.add_child(nm)
-	v.add_child(_bar(u.hp, u.max_hp, HP_C))
-	if u.side == "player":
-		v.add_child(_bar(u.stress, 100, STRESS_C))
-	var stt := PackedStringArray()
-	for s in u.statuses:
-		stt.append(Data.status_defs().get(s.id, {}).get("name", s.id))
-	if stt.size() > 0:
-		var sl := Label.new()
-		sl.text = ", ".join(stt)
-		sl.add_theme_color_override("font_color", GOLD)
-		sl.add_theme_font_size_override("font_size", 11)
-		v.add_child(sl)
-	var last_fx := ""
-	var last_kind := ""
-	for f in c.fx:
-		if f.who == u.id:
-			last_fx = f.text
-			last_kind = f.kind
-	if last_fx != "":
-		var fl := Label.new()
-		fl.text = last_fx
-		fl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		fl.add_theme_font_size_override("font_size", 20)
-		fl.add_theme_color_override("font_color", GOLD if last_kind == "crit" else (HEAL if last_kind == "heal" else EMBER))
-		v.add_child(fl)
-	p.add_child(v)
-	return p
-
-func _skill_dock(box: VBoxContainer, actor: Dictionary, c: Dictionary) -> void:
-	var dock := _panel()
-	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
 	var top := HBoxContainer.new()
 	var n := Label.new()
-	n.text = "Ход: %s  поз. %d" % [actor.name, actor.pos]
+	n.text = "%s    ·    позиция %d" % [actor.name, actor.pos]
 	n.size_flags_horizontal = SIZE_EXPAND_FILL
-	n.add_theme_color_override("font_color", FG)
+	if display_font:
+		n.add_theme_font_override("font", display_font)
+	n.add_theme_font_size_override("font_size", 15)
 	top.add_child(n)
+	if c.selected != "" and Game.engine.SKILLS.has(c.selected):
+		var hint := Label.new()
+		hint.text = str(Game.engine.SKILLS[c.selected].description) + "  →  клик по цели"
+		hint.add_theme_color_override("font_color", EMBER)
+		hint.add_theme_font_size_override("font_size", 14)
+		top.add_child(hint)
 	top.add_child(_small_btn("Ждать", Game.skip_turn))
 	v.add_child(top)
-	var grid := GridContainer.new()
-	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", 6)
+	var grid := HBoxContainer.new()
+	grid.add_theme_constant_override("separation", 8)
 	for id in actor.skills:
 		var s: Dictionary = Game.engine.SKILLS[id]
 		var ok: bool = Game.engine.can_use(actor, s, c)
 		var b := Button.new()
-		b.text = "%s\n%s" % [s.name, s.description]
-		b.custom_minimum_size = Vector2(0, 72)
+		b.text = s.name
+		b.size_flags_horizontal = SIZE_EXPAND_FILL
+		b.custom_minimum_size = Vector2(0, 46)
 		b.disabled = not ok
 		_style_btn(b, GOLD if c.selected == id else FG, SURFACE)
 		var sid: String = id
@@ -706,19 +758,28 @@ func _skill_dock(box: VBoxContainer, actor: Dictionary, c: Dictionary) -> void:
 	v.add_child(grid)
 	if not Game.inventory.is_empty():
 		var items := HBoxContainer.new()
+		items.add_theme_constant_override("separation", 6)
+		var cap := Label.new()
+		cap.text = "Предметы"
+		cap.add_theme_color_override("font_color", MUTED)
+		cap.add_theme_font_size_override("font_size", 13)
+		items.add_child(cap)
+		var shown := 0
 		for it in Game.inventory:
+			if shown >= 6:
+				break
 			var def: Dictionary = Data.items()[it.def]
 			items.add_child(_small_btn(def.name, func(): Game.use_item(it.uid, actor.class_id)))
+			shown += 1
 		v.add_child(items)
 	dock.add_child(v)
-	box.add_child(dock)
 
 func _scr_reward(box: VBoxContainer) -> void:
 	if Game.reward == null:
 		return
 	var r: Dictionary = Game.reward
 	_heading(box, "Итог", r.title)
-	_p(box, r.body)
+	_p(box, r.body, FG)
 	if int(r.gold) > 0:
 		_p(box, "+%d золота" % r.gold, GOLD)
 	if int(r.xp) > 0:
@@ -733,5 +794,5 @@ func _scr_result(box: VBoxContainer) -> void:
 		return
 	var r: Dictionary = Game.result
 	_heading(box, "Возвращение" if r.win else "Поражение", r.title)
-	_p(box, r.body)
+	_p(box, r.body, FG)
 	box.add_child(_btn("В Серый Приют", Game.return_town, true))

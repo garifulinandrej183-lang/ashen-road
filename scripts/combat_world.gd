@@ -3,6 +3,8 @@ class_name CombatWorld
 
 signal unit_clicked(id: String)
 
+const MATS := preload("res://scripts/materials.gd")
+
 var units: Dictionary = {}
 var cam: Camera3D
 var last_anim := ""
@@ -31,7 +33,7 @@ func _build_lights() -> void:
 	e.background_color = Color("0d0b0a")
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color("3a322c")
-	e.ambient_light_energy = 0.55
+	e.ambient_light_energy = 0.85
 	e.fog_enabled = true
 	e.fog_light_color = Color("1a1612")
 	e.fog_density = 0.018
@@ -43,7 +45,7 @@ func _build_lights() -> void:
 	add_child(env)
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color("c4a88a")
-	sun.light_energy = 0.55
+	sun.light_energy = 0.9
 	sun.shadow_enabled = true
 	sun.rotation_degrees = Vector3(-48, 35, 0)
 	add_child(sun)
@@ -79,9 +81,10 @@ func _box(size: Vector3, pos: Vector3, mat: Material, rot_y := 0.0) -> MeshInsta
 	return mi
 
 func _build_arena() -> void:
-	var ash := _ground_mat(Color("1c1814"))
-	var stone := _ground_mat(Color("2a2420"), 0.88)
-	var rust := _ground_mat(Color("5a3a28"), 0.7)
+	var ash: StandardMaterial3D = MATS.surf("ash", Color("c8c0b4"), 0.02, 0.95, 0.35, true)
+	var stone: StandardMaterial3D = MATS.surf("stone", Color("b8b0a4"), 0.04, 0.9, 0.28, true)
+	var rust: StandardMaterial3D = MATS.surf("iron", Color("c4a090"), 0.35, 0.62, 0.45, true)
+	var dark: StandardMaterial3D = MATS.surf("stone", Color("6a645c"), 0.04, 0.92, 0.18, true)
 	# road
 	_box(Vector3(22, 0.12, 7.2), Vector3(0, -0.06, 0.4), ash)
 	# shoulders
@@ -100,17 +103,12 @@ func _build_arena() -> void:
 	_box(Vector3(0.35, 1.6, 0.35), Vector3(-0.8, 1.0, -3.8), rust)
 	_box(Vector3(0.35, 1.1, 0.35), Vector3(0.9, 0.75, -3.5), rust)
 	# distant wall
-	_box(Vector3(24, 6.0, 0.8), Vector3(0, 2.5, -7.4), _ground_mat(Color("14110f")))
+	_box(Vector3(24, 6.0, 0.8), Vector3(0, 2.5, -7.4), dark)
 	# ember brazier
 	_box(Vector3(0.7, 0.5, 0.7), Vector3(0, 0.4, 2.6), rust)
 	var flame := MeshInstance3D.new()
 	flame.mesh = SphereMesh.new()
-	var fm := StandardMaterial3D.new()
-	fm.albedo_color = Color("c45c3a")
-	fm.emission_enabled = true
-	fm.emission = Color("c45c3a")
-	fm.emission_energy_multiplier = 5.0
-	flame.material_override = fm
+	flame.material_override = MATS.emit("iron", Color("c45c3a"), 5.0, 0.8)
 	flame.position = Vector3(0, 1.05, 2.6)
 	flame.scale = Vector3(0.35, 0.5, 0.35)
 	add_child(flame)
