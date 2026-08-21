@@ -150,7 +150,9 @@ func start(enc: String, heroes: Array, tutorial: bool) -> Dictionary:
 
 func _build_order(c: Dictionary) -> void:
 	var alive := living(c)
-	alive.sort_custom(func(a, b): return (a.spd + randf() * 2) > (b.spd + randf() * 2))
+	for u in alive:
+		u["_initv"] = float(u.spd) + randf() * 2.0
+	alive.sort_custom(func(a, b): return float(a._initv) > float(b._initv))
 	c.order = []
 	for u in alive:
 		c.order.append(u.id)
@@ -162,7 +164,7 @@ func prepare(c: Dictionary) -> void:
 		c.waiting = false
 		return
 	var guard := 0
-	while guard < 14:
+	while guard < 24:
 		guard += 1
 		if c.turn >= c.order.size():
 			for u in c.units:
@@ -331,6 +333,8 @@ func resolve(c: Dictionary, actor: Dictionary, skill: Dictionary, chosen) -> voi
 		_finish(c, actor, skill)
 		return
 	for raw in targets:
+		if raw == null or not raw.alive:
+			continue
 		var target: Dictionary = raw
 		if skill.kind == "damage" and target.side != actor.side:
 			if target.taunt_by != "" and actor.side == "enemy" and randf() < 0.85:
@@ -500,10 +504,10 @@ func enemy_pick(c: Dictionary, actor: Dictionary) -> Dictionary:
 		var s: Dictionary = SKILLS[id]
 		if can_use(actor, s, c):
 			usable.append(s)
-	var fb: Dictionary = usable[0] if not usable.is_empty() else SKILLS[actor.skills[0]]
+	var fb = usable[0] if not usable.is_empty() else null
 	var heroes := living(c, "player")
-	if heroes.is_empty():
-		return {"skill": fb, "target": null}
+	if heroes.is_empty() or fb == null:
+		return {"skill": null, "target": null}
 	heroes.sort_custom(func(a, b): return a.hp < b.hp)
 	var low = heroes[0]
 	if actor.ai == "stress":
@@ -571,4 +575,4 @@ func skip(c: Dictionary) -> void:
 	tick_dots(c, a)
 	c.turn += 1
 	c.selected = ""
-	prepare(c)
+	c.waiting = false

@@ -64,7 +64,7 @@ func _roster() -> Array:
 	return out
 
 func _item(id: String) -> Dictionary:
-	return {"uid": "it_%d" % (Time.get_ticks_msec() + randi() % 9999), "def": id}
+	return {"uid": "it_%d_%d" % [Time.get_ticks_usec(), randi()], "def": id}
 
 func set_screen(s: String) -> void:
 	screen = s
@@ -105,15 +105,41 @@ func _apply(d: Dictionary) -> void:
 	screen = str(d.get("screen", "title"))
 	gold = int(d.get("gold", 40))
 	heroes = d.get("heroes", _roster())
+	for h in heroes:
+		h.hp = int(h.get("hp", 1))
+		h.max_hp = int(h.get("max_hp", 1))
+		h.stress = int(h.get("stress", 0))
+		h.pos = int(h.get("pos", 1))
+		h.level = int(h.get("level", 1))
+		h.xp = int(h.get("xp", 0))
+		h.str = int(h.get("str", 1))
+		h.def = int(h.get("def", 1))
+		h.spd = int(h.get("spd", 1))
+		h.crit = int(h.get("crit", 1))
 	inventory = d.get("inventory", [])
 	shop = d.get("shop", Data.restock())
 	upgrades = d.get("upgrades", upgrades)
 	expedition = d.get("expedition", null)
 	combat = d.get("combat", null)
+	if typeof(combat) == TYPE_DICTIONARY:
+		combat.turn = int(combat.get("turn", 0))
+		combat.round = int(combat.get("round", 1))
+		for u in combat.get("units", []):
+			u.hp = int(u.get("hp", 0))
+			u.max_hp = int(u.get("max_hp", 1))
+			u.stress = int(u.get("stress", 0))
+			u.pos = int(u.get("pos", 1))
+			u.str = int(u.get("str", 1))
+			u.def = int(u.get("def", 1))
+			u.spd = int(u.get("spd", 1))
+			u.crit = int(u.get("crit", 1))
 	event_id = str(d.get("event_id", ""))
 	reward = d.get("reward", null)
 	result = d.get("result", null)
 	stats = d.get("stats", stats)
+	if typeof(stats) == TYPE_DICTIONARY:
+		stats.expeditions = int(stats.get("expeditions", 0))
+		stats.victories = int(stats.get("victories", 0))
 	tutorial_done = bool(d.get("tutorial_done", false))
 
 func set_pos(id: String, pos: int) -> void:
@@ -245,7 +271,11 @@ func collect_reward() -> void:
 	notify()
 
 func resolve_event(choice: String) -> void:
+	var title := _event_title()
 	var res := _event_result(event_id, choice)
+	if bool(res.get("fail", false)):
+		notify(str(res.get("text", "Не вышло.")))
+		return
 	for h in heroes:
 		if h.hp <= 0:
 			continue
@@ -262,7 +292,7 @@ func resolve_event(choice: String) -> void:
 		inventory.append(_item(res.item))
 		items.append(res.item)
 	event_id = ""
-	_set_reward(_event_title(), str(res.get("text", "")), maxi(0, int(res.get("gold", 0))), int(res.get("xp", 0)), items)
+	_set_reward(title, str(res.get("text", "")), maxi(0, int(res.get("gold", 0))), int(res.get("xp", 0)), items)
 
 func _event_title() -> String:
 	for e in Data.events():
@@ -282,11 +312,11 @@ func _event_result(eid: String, cid: String) -> Dictionary:
 			if cid == "buy":
 				if gold >= 25:
 					return {"text": "Он суёт вам пузырёк.", "gold": -25, "item": "bitter_tincture"}
-				return {"text": "Монет не хватает."}
+				return {"text": "Монет не хватает.", "fail": true}
 			if cid == "mystery":
 				if gold >= 40:
 					return {"text": "В свёртке редкая вещь.", "gold": -40, "item": Data.roll_loot(0.35)} if randf() < 0.55 else {"text": "Свёрток пуст.", "gold": -40, "stress": 14}
-				return {"text": "Сорок — или ничего."}
+				return {"text": "Сорок — или ничего.", "fail": true}
 			return {"text": "Когда вы оборачиваетесь, урны уже нет."}
 		"corpse":
 			if cid == "bury":
@@ -320,7 +350,7 @@ func _event_result(eid: String, cid: String) -> Dictionary:
 			if cid == "gold":
 				if gold >= 30:
 					return {"text": "Чаша принимает металл.", "gold": -30, "hp": 40}
-				return {"text": "Тридцать — или ничего."}
+				return {"text": "Тридцать — или ничего.", "fail": true}
 			return {"text": "На дне спрятанные монеты.", "gold": 28 + randi() % 20, "stress": 10}
 		"voice":
 			if cid == "listen":
@@ -376,6 +406,10 @@ func enemy_turn() -> void:
 		notify()
 		return
 	var pick: Dictionary = engine.enemy_pick(combat, actor)
+	if pick.get("skill") == null:
+		engine.skip(combat)
+		_after()
+		return
 	engine.resolve(combat, actor, pick.skill, pick.target)
 	_after()
 
