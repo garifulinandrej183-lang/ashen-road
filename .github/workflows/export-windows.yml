@@ -1,0 +1,41 @@
+name: Собрать Windows exe
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Godot 4.3 and export templates
+        run: |
+          set -e
+          curl -fsSL -o godot.zip https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+          curl -fsSL -o templates.tpz https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
+          unzip -q godot.zip
+          chmod +x Godot_v4.3-stable_linux.x86_64
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.3.stable"
+          unzip -q templates.tpz -d /tmp
+          cp /tmp/templates/* "$HOME/.local/share/godot/export_templates/4.3.stable/"
+          echo "$PWD/Godot_v4.3-stable_linux.x86_64" >> "$GITHUB_PATH"
+
+      - name: Import project
+        run: |
+          ./Godot_v4.3-stable_linux.x86_64 --headless --path . --import --quit || true
+
+      - name: Export Windows
+        run: |
+          mkdir -p build
+          ./Godot_v4.3-stable_linux.x86_64 --headless --path . --export-release "Windows Desktop" build/AshenRoad.exe
+          ls -la build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AshenRoad-Windows
+          path: build/
+          if-no-files-found: error

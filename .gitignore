@@ -1,0 +1,8 @@
+.godot/
+*.translation
+export/
+build/
+*.import
+.import/
+*.uid
+.DS_Store
